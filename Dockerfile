@@ -1,33 +1,24 @@
-# Base Node image
-FROM node:14 as build
-
-WORKDIR /app
-
-# Install dependencies
-COPY package.json .
-RUN npm install
-
-# Copy app files
+# Stage 1 - Build Node dependencies
+FROM node:18 AS builder
+WORKDIR /usr/src/app
+COPY package*.json ./
+RUN npm install --production
 COPY . .
 
-# Build step (optional if React/Vue frontend, else skip)
-# RUN npm run build
-
-# --------------------
-# Final Stage: Nginx
-# --------------------
+# Stage 2 - Runtime with Nginx + Node
 FROM nginx:alpine
 
-# Copy nginx config
+# Install Node.js in the nginx container
+RUN apk add --no-cache nodejs npm
+
+WORKDIR /app
+# Copy app
+COPY --from=builder /usr/src/app /app
+# Copy Nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
-
-# Copy built app / static files
-COPY public/ /usr/share/nginx/html/
-
-# Copy Node backend (optional if API needed)
-COPY server.js /usr/share/nginx/html/server.js
 
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+# Start both services
+CMD sh -c "cd /app && node app.js & nginx -g 'daemon off;'"
 

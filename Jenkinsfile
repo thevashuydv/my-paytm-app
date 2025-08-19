@@ -1,45 +1,43 @@
 pipeline {
     agent any
-
-    environment {
-        DOCKERHUB_CREDENTIALS = 'dockerhub'   // Jenkins credential ID
-        DOCKER_IMAGE = "vashuyadav/paytm-app"
+    options {
+        ansiColor('xterm')
     }
-
+    environment {
+        DOCKER_IMAGE = ‘vashuyadav/paytm-registration'
+        DOCKER_HUB_CREDENTIALS = credentials('dockerhub-creds')
+    }
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/thevashuydv/my-paytm-app.git'
+                git branch: 'main', url: 'https://github.com/thevashuydv/my-paytm-app.git’
             }
         }
-
         stage('Build Docker Image') {
             steps {
-                script {
-                    sh 'docker build -t $DOCKER_IMAGE:latest .'
+                sh "docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} ."
+            }
+        }
+        stage('Login to DockerHub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
                 }
             }
         }
-
         stage('Push to DockerHub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: "$DOCKERHUB_CREDENTIALS", usernameVariable: 'USER', passwordVariable: 'PASS')]) {
-                    sh """
-                      echo "$PASS" | docker login -u "$USER" --password-stdin
-                      docker push $DOCKER_IMAGE:latest
-                    """
-                }
+                sh "docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}"
+                sh "docker tag ${DOCKER_IMAGE}:${BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
+                sh "docker push ${DOCKER_IMAGE}:latest"
             }
         }
-
         stage('Deploy Locally') {
             steps {
-                script {
-                    sh """
-                      docker rm -f paytm-app || true
-                      docker run -d --name paytm-app -p 80:80 $DOCKER_IMAGE:latest
-                    """
-                }
+                sh """
+                docker rm -f paytm-registration || true
+                docker run -d -p 8081:80 --name paytm-registration ${DOCKER_IMAGE}:latest
+                """
             }
         }
     }

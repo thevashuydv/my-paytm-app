@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/thevashuydv/my-paytm-app.git’
+                git branch: 'main', url: 'https://github.com/thevashuydv/my-paytm-app.git'
             }
         }
         stage('Build Docker Image') {
